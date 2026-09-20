@@ -1,18 +1,21 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Fuegos Artificiales</title>
-<link rel="stylesheet" href="styles.css">
-</head>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fuegos Artificiales</title>
+    <link rel="stylesheet" href="styles.css?v=2">
+  </head>
 <body>
 
-<audio id="song" src="about-you.mp3" loop></audio>
+<audio id="song" loop preload="auto">
+  <source src="about-you.mp3" type="audio/mpeg">
+</audio>
+
 <canvas id="scene"></canvas>
-<div id="lyrics"></div>
-<div id="playHint">Click para reproducir</div>
-<p class="hint">Toca la pantalla</p>
+  <div id="lyrics"></div>
+  <div id="playHint">Toca la pantalla para iniciar</div>
+  <p class="hint">Toca la pantalla</p>
 <!-- Botón flotante para abrir el ramo - 50s -->
 <button id="bouquetBtn" type="button">Ver ramo</button>
 
@@ -88,8 +91,6 @@
     return parts[0] || 0;
   }
 
-  /** Envuelve cada palabra del HTML en un <span class="word">,
-      respetando los spans con clases (.big, .med, etc.) */
   function wrapWords(html) {
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
@@ -674,13 +675,13 @@
       this.audio = document.getElementById('song');
       this.hint = document.getElementById('playHint');
       this.started = false;
+      this.unlocked = false;
 
       // Normalizar tiempos a segundos (acepta "1:32" o 92)
       this.lines = LYRICS
         .map(l => ({ t: timeToSeconds(l.t), text: l.text }))
         .sort((a, b) => a.t - b.t);
 
-      // Cuándo termina cada línea
       for (let i = 0; i < this.lines.length; i++) {
         this.lines[i].end = (i + 1 < this.lines.length)
           ? this.lines[i + 1].t
@@ -697,29 +698,79 @@
 
       if (!this.el || !this.audio) return;
 
-      const startAudio = () => {
-        if (this.started) return;
+      this.audio.volume = 0.9;
+
+      this._attempting = false;
+      this._startAudio = this._startAudio.bind(this);
+
+      // pointerdown cubre mouse y táctil sin duplicar el mismo gesto con
+      // touchend/click, que pueden dispararse casi al mismo tiempo.
+      this._unlockEvents = ['pointerdown', 'keydown'];
+      this._unlockEvents.forEach(evt => {
+        document.addEventListener(evt, this._startAudio, { passive: true });
+      });
+
+      // Si el usuario vuelve a la pestaña, reintentamos por si acaso
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && this.started && this.audio.paused) {
+          this.audio.play().catch(() => {});
+        }
+      });
+    }
+
+    _startAudio(e) {
+      if (this.started || this._attempting) return;
+
+      if (e && e.type === 'keydown') {
+        if (e.key !== ' ' && e.key !== 'Enter') return;
+      }
+
+      this._hideHint();
+
+      this._attempting = true;
+
+      const promise = this.audio.play();
+
+      if (promise && promise.catch) {
+        promise.then(() => {
+          this.started = true;
+          this.unlocked = true;
+          this._attempting = false;
+          this._removeUnlockListeners();
+        }).catch(err => {
+
+          this._attempting = false;
+          console.warn('Autoplay bloqueado, esperando nuevo gesto:', err.name);
+        });
+      } else {
         this.started = true;
-        this.audio.volume = 0.9;
-        this.audio.play().catch(() => {});
-        if (this.hint) this.hint.classList.add('hide');
-        document.removeEventListener('pointerdown', startAudio);
-      };
-      document.addEventListener('pointerdown', startAudio);
+        this.unlocked = true;
+        this._attempting = false;
+        this._removeUnlockListeners();
+      }
+    }
+
+    _hideHint() {
+      if (this.hint) this.hint.classList.add('hide');
+    }
+
+    _removeUnlockListeners() {
+      this._unlockEvents.forEach(evt => {
+        document.removeEventListener(evt, this._startAudio);
+      });
     }
 
     update() {
       if (!this.started || !this.audio) return;
+      if (this.audio.paused) return;
 
       const time = this.audio.currentTime;
 
-      // ¿En qué línea deberíamos estar?
       let target = -1;
       for (let i = this.lines.length - 1; i >= 0; i--) {
         if (time >= this.lines[i].t) { target = i; break; }
       }
 
-      // Cambio de línea
       if (target !== this.currentLine) {
         this.currentLine = target;
         this.hidden = false;
@@ -734,7 +785,6 @@
 
       if (this.hidden) return;
 
-      // Revelar palabras una a una (solo si la línea ya está montada)
       if (this.ready && this.words.length) {
         for (let i = 0; i < this.words.length; i++) {
           if (!this.words[i].classList.contains('show') &&
@@ -744,7 +794,6 @@
         }
       }
 
-      // Ocultar cuando termina la línea (solo si ya está montada)
       if (this.ready && this.currentLine >= 0 && time > this.activeUntil) {
         this.hideLine();
         this.hidden = true;
@@ -753,7 +802,6 @@
 
     beginLine(index) {
       const line = this.lines[index];
-
       clearTimeout(this._pendingTimer);
 
       this.activeUntil = line.end;
@@ -770,7 +818,6 @@
         const nodes = this.el.querySelectorAll('.word');
         this.words = Array.from(nodes);
 
-        // Programar cuándo aparece cada palabra
         const lineDuration = Math.max(0.4, line.end - line.t);
         const revealWindow = lineDuration * 0.75;
         const n = this.words.length;
