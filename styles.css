@@ -1,0 +1,285 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap');
+
+:root { color-scheme: dark; }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000005;
+  cursor: crosshair;
+  -webkit-tap-highlight-color: transparent;
+}
+
+canvas { position: fixed; inset: 0; display: block; }
+
+/* ---------- Texto de ayuda inferior ---------- */
+.hint {
+  position: fixed; z-index: 3; left: 50%; bottom: 42px;
+  transform: translateX(-50%);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 12px; letter-spacing: 0.32em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  pointer-events: none; user-select: none;
+  animation: hintPulse 7s ease-in-out infinite;
+}
+@keyframes hintPulse {
+  0%, 100% { opacity: 0.15; }
+  50%      { opacity: 0.65; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hint { animation: none; opacity: 0.4; }
+}
+
+/* ---------- Aviso "clic para reproducir" ---------- */
+#playHint {
+  position: fixed; z-index: 4; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: system-ui, sans-serif;
+  font-size: 13px; letter-spacing: 0.3em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+#playHint.hide { opacity: 0; }
+
+/* ============================================================
+   Letra de la canción
+   ============================================================ */
+#lyrics {
+  position: fixed; z-index: 2;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%; max-width: 1100px;
+  text-align: center;
+
+  font-family: 'Caveat', cursive;
+  font-weight: 500;
+  font-size: clamp(24px, 4vw, 60px);
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow:
+    0 0 22px rgba(160, 190, 255, 0.7),
+    0 0 55px rgba(120, 160, 255, 0.45),
+    0 0 90px rgba(90, 130, 255, 0.25);
+
+  pointer-events: none; user-select: none;
+  opacity: 0;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+  white-space: pre-line;
+  text-wrap: balance;
+}
+
+#lyrics.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.02);
+}
+
+/* ---------- Palabras individuales (karaoke) ---------- */
+#lyrics .word {
+  display: inline-block;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(10px) scale(0.92);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  will-change: opacity, transform;
+}
+
+#lyrics .word.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* ---------- Modificadores de tamaño ---------- */
+
+#lyrics .big {
+  display: inline-block;
+  font-size: 1.9em; font-weight: 700;
+  color: #ffffff; letter-spacing: -0.01em;
+  text-shadow:
+    0 0 28px rgba(200, 220, 255, 0.95),
+    0 0 70px rgba(150, 190, 255, 0.6);
+}
+
+#lyrics .med {
+  display: inline-block;
+  font-size: 1.35em; font-weight: 600;
+  color: #eaf2ff;
+}
+
+#lyrics .small {
+  display: inline-block;
+  font-size: 0.62em; font-weight: 400;
+  opacity: 0.7; letter-spacing: 0.06em;
+}
+
+#lyrics .whisper {
+  display: inline-block;
+  font-size: 0.45em; font-weight: 300;
+  letter-spacing: 0.35em; text-transform: uppercase;
+  opacity: 0.55; vertical-align: middle;
+}
+
+#lyrics .soft {
+  display: inline-block;
+  font-style: italic; font-weight: 300;
+  font-size: 0.85em; opacity: 0.85;
+}
+
+/* ===/* ============================================================
+   BOTÓN DEL RAMO (aparece a los 50 s)
+   ============================================================ */
+#bouquetBtn {
+  position: fixed;
+  z-index: 5;
+  right: 28px;
+  bottom: 28px;
+  padding: 14px 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(180, 210, 255, 0.45);
+  background: rgba(20, 30, 60, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #eaf2ff;
+  font-family: 'Comfortaa', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  opacity: 0;
+  transform: translateY(20px) scale(0.9);
+  pointer-events: none;
+  transition: opacity 0.9s ease, transform 0.9s ease,
+              box-shadow 0.3s ease, background 0.3s ease;
+}
+
+#bouquetBtn.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  box-shadow:
+    0 0 22px rgba(140, 180, 255, 0.35),
+    inset 0 0 12px rgba(140, 180, 255, 0.12);
+  animation: btnPulse 4s ease-in-out infinite;
+}
+
+#bouquetBtn.visible:hover {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow:
+    0 0 34px rgba(180, 210, 255, 0.7),
+    inset 0 0 18px rgba(180, 210, 255, 0.2);
+  background: rgba(40, 55, 100, 0.5);
+}
+
+#bouquetBtn.visible:active {
+  transform: translateY(0) scale(0.98);
+}
+
+@keyframes btnPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 22px rgba(140, 180, 255, 0.35),
+      inset 0 0 12px rgba(140, 180, 255, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 34px rgba(180, 210, 255, 0.6),
+      inset 0 0 18px rgba(180, 210, 255, 0.22);
+  }
+}
+
+/* ============================================================
+   MODAL DEL RAMO
+   ============================================================ */
+#bouquetModal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 8, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+#bouquetModal.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#bouquetModal .modal-content {
+  position: relative;
+  width: 88vw;
+  height: 88vh;
+  max-width: 1200px;
+  max-height: 900px;
+  padding: 0;
+  border-radius: 24px;
+  overflow: hidden;
+  background: rgba(8, 12, 30, 0.9);
+  border: 1px solid rgba(160, 200, 255, 0.25);
+  box-shadow:
+    0 0 60px rgba(120, 170, 255, 0.35),
+    inset 0 0 40px rgba(60, 100, 200, 0.15);
+
+  transform: translateY(20px) scale(0.96);
+  opacity: 0;
+  transition:
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.55s ease;
+}
+
+#bouquetModal.open .modal-content {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+/* Botón de cierre (X) */
+#bouquetClose {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(180, 210, 255, 0.4);
+  background: rgba(20, 30, 60, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #eaf2ff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+
+#bouquetClose:hover {
+  transform: rotate(90deg);
+  background: rgba(60, 80, 140, 0.85);
+}
+
+/* Iframe que carga el ramo */
+#bouquetFrame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: transparent;
+}
